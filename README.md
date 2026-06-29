@@ -3,12 +3,14 @@
 > **Which hour is Manhattan most alive?**
 > A production-grade local ETL pipeline with Airflow DAGs, Pandas transforms, SQLite warehouse, and an interactive Plotly dashboard.
 
-## Project Structure (3 folders, no sub-folders)
+## Project Structure
 
 ```
 city_pulse/
-├── run.py                  ← One-command launcher (start everything)
-├── app.py → dashboard.py   ← Flask dashboard server
+├── start.sh                ← One-command launcher (Mac/Linux)
+├── start.bat               ← One-command launcher (Windows)
+├── run.py                  ← Python launcher (used by startup scripts)
+├── dashboard.py            ← Flask dashboard server
 ├── scheduler.py            ← Built-in DAG scheduler (no Airflow needed)
 ├── config.py               ← All settings & constants
 ├── database.py             ← SQLite warehouse (raw → staging → analytics)
@@ -17,27 +19,62 @@ city_pulse/
 ├── requirements.txt
 ├── README.md
 ├── dags/
+│   ├── __init__.py         ← Required for Python imports (auto-created by scripts)
 │   └── city_pulse_dag.py   ← Airflow DAG definitions (3 DAGs)
-└── data/
-    ├── city_pulse.db        ← SQLite warehouse (auto-created)
+└── data/                   ← Auto-created on first run
+    ├── city_pulse.db        ← SQLite warehouse
     ├── raw/                 ← Raw data staging
     └── processed/           ← Processed output
 ```
 
 ## Quick Start
 
+The easiest way to run the project is with the provided startup scripts.
+They handle everything automatically — virtual environment, dependencies, and launch.
+
+**Mac / Linux — `start.sh`**
 ```bash
-# 1. Install
-pip install flask pandas requests
+# Place start.sh in the city_pulse/ folder, then:
+bash start.sh
+```
 
-# 2. Launch everything (scheduler + dashboard)
-python run.py
+**Windows — `start.bat`**
+```
+Double-click start.bat
+```
 
-# 3. Open dashboard
-http://localhost:5050
+That's it. Both scripts will:
+1. Check Python 3.10+ is installed
+2. Create `dags/__init__.py` if missing
+3. Verify all required project files are present
+4. Create and activate a virtual environment
+5. Install all dependencies
+6. Launch the pipeline with 90 days of backfilled data
 
-# 4. Click "Backfill 90 Days" for full history, or
-#    Click "Run ETL (10k)" for a quick test
+Once running, open the dashboard at **http://localhost:5050**. Press `Ctrl+C` to stop.
+
+---
+
+### Manual Quick Start (without the scripts)
+
+```bash
+# 1. Create virtual environment
+python -m venv venv
+source venv/bin/activate        # Mac/Linux
+venv\Scripts\activate           # Windows
+
+# 2. Install dependencies
+pip install flask pandas requests numpy
+
+# 3. Create the dags package init file (required)
+touch dags/__init__.py          # Mac/Linux
+echo. > dags\__init__.py        # Windows
+
+# 4. Launch everything (scheduler + dashboard)
+python run.py --backfill
+
+# 5. Open dashboard
+# http://localhost:5050
 ```
 
 ## Commands
@@ -146,13 +183,27 @@ http://localhost:8080
 Set `OPENWEATHER_API_KEY` env var for real weather data.
 The pipeline always works with synthetic data if APIs are unreachable.
 
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `ModuleNotFoundError: No module named 'dags'` | Run `touch dags/__init__.py` (Mac/Linux) or `echo. > dags\__init__.py` (Windows) |
+| `ModuleNotFoundError: No module named 'dashboard'` | Make sure the file is named `dashboard.py`, not `app.py` |
+| Port 5050 already in use | Change `DASHBOARD_PORT = 5050` in `config.py` to another port e.g. `5051` |
+| Database errors on re-run | Delete the `data/` folder and re-run — `init_db()` recreates everything |
+| Blank dashboard / no charts | Run with `--backfill` first to seed historical data |
+
 ## VS Code Setup
 
 ```bash
 python -m venv venv
-venv\Scripts\activate        # Windows
-source venv/bin/activate     # Mac/Linux
+venv\Scripts\activate           # Windows
+source venv/bin/activate        # Mac/Linux
 
-pip install flask pandas requests
-python run.py
+pip install flask pandas requests numpy
+
+touch dags/__init__.py          # Mac/Linux
+echo. > dags\__init__.py        # Windows
+
+python run.py --backfill
 ```
